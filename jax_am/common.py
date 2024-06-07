@@ -7,6 +7,8 @@ import yaml
 import pandas as pd 
 import time
 from functools import wraps
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 
 from jax_am import logger
 
@@ -127,6 +129,40 @@ def to_data_frame(data_dir, dt=2 * 1e-6):
     print('save as data_frame.csv')
     return DF
     
+    def scatter_diagram(data_csv_dir, solname='sol_0', file_format='mp4'):
+    data_frame = pd.read_csv(data_csv_dir)
+    X_unique = pd.unique(data_frame['x'])
+    Y_unique = pd.unique(data_frame['y'])
+    Z_unique = pd.unique(data_frame['z'])
+    time_unique = pd.unique(data_frame['time'])
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    sc = ax.scatter([], [], [], c=[], cmap='jet', vmin=data_frame[solname].min(), vmax=data_frame[solname].max())
+    cbar = fig.colorbar(sc, ax=ax, pad=0.1, shrink=0.5)
+
+    def init():
+        ax.set_xlim(X_unique.min(), X_unique.max())
+        ax.set_ylim(Y_unique.min(), Y_unique.max())
+        ax.set_zlim(Z_unique.min(), Z_unique.max())
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        return sc,
+
+    def update(time_value):
+        frame_data = data_frame[data_frame['time'] == time_value]
+        sc._offsets3d = (frame_data['x'], frame_data['y'], frame_data['z'])
+        sc.set_array(frame_data[solname])
+        ax.set_title(f"Temperature at t = {time_value:.5f} S")
+        return sc,
+
+    anim = FuncAnimation(fig, update, frames=time_unique, init_func=init, blit=False)
+
+    anim.save(f'scatter_sol.{file_format}', writer='pillow' if file_format == 'gif' else 'ffmpeg', fps=10)
+
+    # plt.show()    
 
 # A simpler decorator for printing the timing results of a function
 def timeit(func):
